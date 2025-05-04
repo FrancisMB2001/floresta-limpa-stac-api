@@ -2,7 +2,9 @@ import json
 from pypgstac.db import PgstacDB
 from pypgstac.load import Loader
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 # CONFIG
 # DB_DSN = "postgresql://postgres:pgpass@localhost:6005/pgstac"  # Database URI
 # COLLECTIONS_JSON_PATH = "collections.json"  # Path to your collections JSON file
