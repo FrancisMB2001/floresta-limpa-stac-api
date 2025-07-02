@@ -44,7 +44,7 @@ load_dotenv()
 # CATALOG_PATH = "C:/Users/Francisco/Desktop/Tese/floresta-limpa-pystac/stac-catalog-generator/stac_catalog_dev/catalog.json"
 # COLLECTIONS_OUTPUT_FILE = "collections.json"
 # ITEMS_OUTPUT_FILE = "items.json"
-CATALOG_PATH = os.getenv("CATALOG_PATH", "C:/Users/Francisco/Desktop/Tese/floresta-limpa-pystac/stac-catalog-generator/stac_catalog_dev/catalog.json")
+CATALOG_PATH = os.getenv("CATALOG_PATH", "/media/servers/STAC/stac_catalog/catalog.json")
 COLLECTIONS_OUTPUT_FILE = os.getenv("COLLECTIONS_OUTPUT_FILE", "collections.json")
 ITEMS_OUTPUT_FILE = os.getenv("ITEMS_OUTPUT_FILE", "items.json")
 

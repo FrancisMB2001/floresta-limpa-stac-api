@@ -1,0 +1,6 @@
+pystac
+pypgstac
+dotenv
+psycopg
+psycopg_binary
+psycopg_pool

@@ -34,8 +34,17 @@ else:
 # LOAD ITEMS
 with open(ITEMS_JSON_PATH, 'r', encoding='utf-8') as f:
     items_data = json.load(f)
+    
 
 if isinstance(items_data, list):
+        # Debug: Check for items missing collection field
+    for i, item in enumerate(items_data):
+        if 'collection' not in item:
+            print(f"Item at index {i} missing 'collection' field:")
+            print(f"Item ID: {item.get('id', 'NO_ID')}")
+            print(f"Item keys: {list(item.keys())}")
+            break
+
     loader.load_items(ITEMS_JSON_PATH)
     print(f"Loaded {len(items_data)} items.")
 else:
