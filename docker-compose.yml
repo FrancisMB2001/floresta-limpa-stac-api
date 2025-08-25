@@ -26,7 +26,7 @@ services:
         condition: service_healthy
     entrypoint: >
       sh -c "
-        echo 'Installing required packages...' &&
+        echo 'Installing required packages.. .' &&
         pip install pypgstac[psycopg] &&
         echo 'DB is ready. Running pypgstac migrate...' &&
         pypgstac migrate --dsn postgresql://postgres:pgpass@db:5432/pgstac --toversion 0.9.6
@@ -57,5 +57,25 @@ services:
       - ENABLED_EXTENSIONS=filter,transactions,sort,query
     ports:
       - "6006:8080"
+  
+  loader:
+    build:
+      context: .
+      dockerfile: Dockerfile.loader
+    container_name: stac-loader
+    restart: unless-stopped 
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ${EXTERNAL_CATALOG_LOCATION_DIRECTORY:-/media/servers/STAC/current_stac_catalog}:/app/stac_catalog
+      - ./output:/app/output
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASS=pgpass
+      - POSTGRES_DB=pgstac
+      - CATALOG_PATH=/app/stac_catalog/catalog.json
+      - COLLECTIONS_OUTPUT_FILE=/app/output/collections.json
+      - ITEMS_OUTPUT_FILE=/app/output/items.json
 volumes:
   pgdata:

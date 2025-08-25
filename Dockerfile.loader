@@ -1,0 +1,90 @@
+# FROM python:3.12
+# 
+# # Install cron
+# RUN apt-get update && apt-get install -y cron && rm -rf /var/lib/apt/lists/*
+# 
+# WORKDIR /app
+# 
+# # Copy dependencies and install them
+# COPY requirements.txt .
+# RUN pip install --no-cache-dir -r requirements.txt
+# 
+# # Copy script and environment
+# COPY . .
+# COPY .env .env
+# 
+# # Make sure the script is executable
+# RUN chmod +x stac_collection_item_agg.py
+# RUN chmod +x stac_pgstac_importer.py
+# 
+# # (runs at 6AM GMT on Saturdays)
+# RUN echo "0 6 * * 6 cd /app && /usr/local/bin/python stac_collection_item_agg.py && /usr/local/bin/python stac_pgstac_importer.py >> /var/log/cron.log 2>&1" > /etc/cron.d/weekly-task
+# # Give execution rights and register it
+# RUN chmod 0644 /etc/cron.d/weekly-task && crontab /etc/cron.d/weekly-task
+# # Create log file for cron to write into
+# RUN touch /var/log/cron.log
+# # Run cron in the foreground so container stays alive
+# CMD ["cron", "-f"]
+
+FROM python:3.12
+# Install cron
+RUN apt-get update && apt-get install -y cron && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+# Copy dependencies and install them
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+# Copy script and environment
+COPY . .
+COPY .env .env
+# Make sure the scripts are executable
+RUN chmod +x stac_collection_item_agg.py
+RUN chmod +x stac_pgstac_importer.py
+
+# Create a wrapper script for better logging and debugging
+RUN echo '#!/bin/bash' > /app/run_weekly_task.sh && \
+    echo 'echo "$(date): Starting weekly STAC processing task"' >> /app/run_weekly_task.sh && \
+    echo 'cd /app' >> /app/run_weekly_task.sh && \
+    echo 'echo "$(date): Running stac_collection_item_agg.py"' >> /app/run_weekly_task.sh && \
+    echo '/usr/local/bin/python stac_collection_item_agg.py' >> /app/run_weekly_task.sh && \
+    echo 'FIRST_EXIT_CODE=$?' >> /app/run_weekly_task.sh && \
+    echo 'echo "$(date): First script completed with exit code: $FIRST_EXIT_CODE"' >> /app/run_weekly_task.sh && \
+    echo 'if [ $FIRST_EXIT_CODE -eq 0 ]; then' >> /app/run_weekly_task.sh && \
+    echo '  echo "$(date): Running stac_pgstac_importer.py"' >> /app/run_weekly_task.sh && \
+    echo '  /usr/local/bin/python stac_pgstac_importer.py' >> /app/run_weekly_task.sh && \
+    echo '  SECOND_EXIT_CODE=$?' >> /app/run_weekly_task.sh && \
+    echo '  echo "$(date): Second script completed with exit code: $SECOND_EXIT_CODE"' >> /app/run_weekly_task.sh && \
+    echo 'else' >> /app/run_weekly_task.sh && \
+    echo '  echo "$(date): First script failed, skipping second script"' >> /app/run_weekly_task.sh && \
+    echo 'fi' >> /app/run_weekly_task.sh && \
+    echo 'echo "$(date): Weekly task completed"' >> /app/run_weekly_task.sh && \
+    chmod +x /app/run_weekly_task.sh
+
+# Set up cron job to run weekly (Saturday at 6AM GMT)
+RUN echo "0 6 * * 6 /app/run_weekly_task.sh >> /var/log/cron.log 2>&1" > /etc/cron.d/weekly-task && \
+    echo "" >> /etc/cron.d/weekly-task
+
+# For testing: add a job that runs every minute (comment out the line above and uncomment this for testing)
+# RUN echo "* * * * * /app/run_weekly_task.sh >> /var/log/cron.log 2>&1" > /etc/cron.d/weekly-task && \
+#     echo "" >> /etc/cron.d/weekly-task
+
+# Give execution rights and register the cron job
+RUN chmod 0644 /etc/cron.d/weekly-task && crontab /etc/cron.d/weekly-task
+
+# Create log file for cron
+RUN touch /var/log/cron.log
+
+# Create startup script that runs task immediately then starts cron
+RUN echo '#!/bin/bash' > /app/startup.sh && \
+    echo 'echo "$(date): Container starting up"' >> /app/startup.sh && \
+    echo 'echo "$(date): Cron jobs installed:"' >> /app/startup.sh && \
+    echo 'crontab -l' >> /app/startup.sh && \
+    echo 'echo "$(date): Running initial task immediately..."' >> /app/startup.sh && \
+    echo '/app/run_weekly_task.sh' >> /app/startup.sh && \
+    echo 'echo "$(date): Initial task completed, starting cron service for future runs"' >> /app/startup.sh && \
+    echo 'cron' >> /app/startup.sh && \
+    echo 'echo "$(date): Cron service started, tailing log file for future scheduled runs..."' >> /app/startup.sh && \
+    echo 'tail -f /var/log/cron.log' >> /app/startup.sh && \
+    chmod +x /app/startup.sh
+
+# Run startup script
+CMD ["/app/startup.sh"]
